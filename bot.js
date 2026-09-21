@@ -1,42 +1,33 @@
 const express = require('express');
+const https = require('https');
 const app = express();
 app.use(express.json());
 
-let operations = [];
+let ops = [];
 
-// البوت رح يستقبل العملية بهاد الشكل
-// مثال: { name: "احمد", opNumber: "#1234567890", amount: "+5000" }
+const MY_PHONE = "18783224473";
+const API_KEY = "9540693";
 
 app.post('/sham', (req, res) => {
-  let text = req.body.text || "";
+  const text = req.body.text || "";
+  const opNum = text.match(/#\d{10}/);
+  if(!opNum) return res.json({ok:false, reason:"no 10 digit op"});
 
-  // بيدور على رقم العملية 10 ارقام
-  let opMatch = text.match(/#\d{10}/);
-  let amountMatch = text.match(/\+\s?(\d+)/);
-  let nameMatch = text.split('\n')[0];
+  const amount = text.match(/\+\s?[\d,]+/)?.[0] || "مبلغ";
+  const name = text.split('\n')[0] || "زبون";
 
-  if(opMatch){
-    let data = {
-      sender: nameMatch,
-      operation: opMatch[0],
-      amount: amountMatch? amountMatch[0] : "مبلغ جديد",
-      date: new Date().toLocaleString('ar-SY')
-    };
-    operations.push(data);
-    console.log("عملية جديدة مسكت:", data);
+  const msg = `💰 عملية شام كاش\n👤 ${name}\n🔢 ${opNum[0]}\n💵 ${amount}`;
 
-    // هون رح نضيف ارسال واتساب بعدين
-  }
-  res.json({ok: true, found:!!opMatch});
+  ops.push(msg);
+  console.log(msg);
+
+  // يبعتلك واتساب
+  const url = `https://api.callmebot.com/whatsapp.php?phone=${MY_PHONE}&text=${encodeURIComponent(msg)}&apikey=${API_KEY}`;
+  https.get(url, (r)=> console.log("WhatsApp sent:", r.statusCode));
+
+  res.json({ok:true});
 });
 
-app.get('/', (req, res) => {
-  res.send(`
-  <h2>بوت شام كاش شغال ✅</h2>
-  <p>آخر العمليات: ${operations.length}</p>
-  <pre>${JSON.stringify(operations.slice(-10), null, 2)}</pre>
-  <p>رقم العملية المطلوب: # + 10 أرقام</p>
-  `);
-});
+app.get('/', (req,res)=> res.send(`<h2>✅ البوت شغال</h2><p>آخر ${ops.length} عمليات</p><pre>${ops.slice(-10).join('\n\n')}</pre>`));
 
-app.listen(10000, () => console.log('Bot Live'));
+app.listen(10000, () => console.log('Live'));
